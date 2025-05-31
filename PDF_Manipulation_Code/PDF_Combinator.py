@@ -80,7 +80,7 @@ def combine_pdfs(pdf_folder, output_path):
 def merge_pdfs(pdf_folder, output_path):
     # We are sorting based on the natural numbers, if any in the front.
     pdf_list = sorted(os.listdir(pdf_folder), key=natural_sort_key)
-    # The toc
+    #  The toc
     toc = []
     merger = pymupdf.open()
     page_num = 1
