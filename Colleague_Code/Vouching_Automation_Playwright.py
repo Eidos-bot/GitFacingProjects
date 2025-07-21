@@ -7,7 +7,7 @@ import datetime
 
 dotenv.load_dotenv()
 
-def run(playwright: Playwright, file_path) -> None:
+def run(playwright: Playwright, file_path, state=False, colleague_testing=False) -> None:
 
     workbook = load_workbook(file_path)
     worksheet = workbook['Sheet']
@@ -101,12 +101,17 @@ def run(playwright: Playwright, file_path) -> None:
             terms.append(col_j)
         else:
             pass
+    unique_list = [f"{a}{b}" for a, b in zip(invoice_number, vendor_id)]
     username = str(os.getenv("COLLEAGUEUSER"))
     passw = str(os.getenv("COLLEAGUEPASS"))
-    browser = playwright.chromium.launch(headless=True)
+    browser = playwright.chromium.launch(headless=state)
     context = browser.new_context()
     page = context.new_page()
-    page.goto("https://ui4test.brooklaw.edu:3443/ui/index.html")
+    if colleague_testing:
+        page.goto("https://ui4test.brooklaw.edu:3443/ui/index.html")
+    else:
+        page.goto("https://ui5production.brooklaw.edu:5002/ui/index.html")
+
     with page.expect_popup() as page1_info:
         page.get_by_role("link", name="Click here to launch UI").click()
     page1 = page1_info.value
@@ -118,98 +123,133 @@ def run(playwright: Playwright, file_path) -> None:
     page1.get_by_role("textbox", name="Search for a form").click()
     page1.get_by_role("textbox", name="Search for a form").fill("VOUM")
     page1.get_by_role("textbox", name="Search for a form").press("Enter")
-    for blank in blanks:
+    for invoice_item in unique_list:
+        position = unique_list.index(invoice_item)
+        time.sleep(1)
         page1.get_by_role("textbox", name="Lookup prompt for Voucher").fill("a")
         page1.get_by_role("textbox", name="Lookup prompt for Voucher").press("Enter")
         page1.get_by_role("button", name="Y", exact=True).click()
         time.sleep(1)
-        page1.get_by_role("textbox", name="Maintainable field Voucher Date is a Date field and is").fill("06/30/2025")
+        page1.get_by_role("textbox", name="Maintainable field Voucher Date is a Date field and is").fill(voucher_date[position])
         page1.get_by_role("textbox", name="Maintainable field Voucher Date is a Date field and is").press("Enter")
-        page1.get_by_role("button", name="Y", exact=True).click()
+        try:
+            page1.get_by_role("button", name="Y", exact=True).click(timeout=5)
+        except TimeoutError:
+            print("No confirmation needed.")
+            pass
         page1.get_by_role("textbox", name="Maintainable field Vendor ID").click()
-        page1.get_by_role("textbox", name="Maintainable field Vendor ID").fill("0430413")
+        page1.get_by_role("textbox", name="Maintainable field Vendor ID").fill(vendor_id[position])
         page1.get_by_role("textbox", name="Maintainable field Vendor ID").press("Enter")
+        time.sleep(1)
+        try:
+            not_set_ap_type_warning_locator = page1.locator( "[id='popup_lookup_button_0']")
+            not_set_ap_type_warning_locator.click(timeout=100)
+        except TimeoutError:
+            print("No not set ap type warning.")
+            pass
 
         invoice_num_locator = page1.locator( "[id='VOU-DEFAULT-INVOICE-NO']")
-        invoice_num_locator.fill("REDTHEADLESS5")
+        invoice_num_locator.fill(str(invoice_number[position]))
+        time.sleep(1)
+        invoice_num_locator.press("Tab")
+        time.sleep(1)
+        try:
+            duplicate_invoice_warning_locator = page1.locator( "[id='popup_lookup_button_0']")
+            duplicate_invoice_warning_locator.click(timeout=100)
+        except TimeoutError:
+            print("No duplicate invoice warning.")
+            pass
+
 
         page1.get_by_role("textbox", name="Maintainable field Invoice Date is a Date field").click()
-        page1.get_by_role("textbox", name="Maintainable field Invoice Date is a Date field").fill("06/30/2025")
+        page1.get_by_role("textbox", name="Maintainable field Invoice Date is a Date field").fill(invoice_date[position])
 
 
         invoice_amt_locator = page1.locator( "[id='VOU-INVOICE-AMT']")
         invoice_amt_locator.wait_for(state="visible")
-        invoice_amt_locator.fill("500.00")
-        expect(invoice_amt_locator).to_have_value("500.00")
+        total_invoice_amt = str(invoice_amount[position])
+        invoice_amt_locator.fill(total_invoice_amt)
+        expect(invoice_amt_locator).to_have_value(total_invoice_amt)
         invoice_amt_locator.press("Tab")
         time.sleep(1)
 
         ap_type_locator = page1.locator("[id='VOU-AP-TYPE']")
-        ap_type_locator.fill("tacp")
+        ap_type_locator.fill(ap_type[position])
         ap_type_locator.press("Tab")
+
         time.sleep(1)
+        try:
+            not_set_ap_type_warning_locator = page1.locator( "[id='popup_lookup_button_0']")
+            not_set_ap_type_warning_locator.click(timeout=100)
+        except TimeoutError:
+            print("No not set ap type warning.")
+            pass
 
         value = invoice_amt_locator.input_value().strip()
-        if value != "500.00":
+        if value != total_invoice_amt:
 
             print("VOU-INVOICE-AMT value error", value)
-            time.sleep(100)
+            time.sleep(1)
         print("You are here.")
         time.sleep(1)
         page1.locator("#detail_icon_VAR5").get_by_role("img").click()
         page1.locator("#detail_icon_VOU-ITEMS-ID_1").get_by_role("img").click()
         page1.locator("#detail_icon_ITM-DESC_1").get_by_role("img").click()
         page1.get_by_role("textbox", name="Multiline editor content").click()
-        page1.get_by_role("textbox", name="Multiline editor content").fill("This is a playwright test.")
+        page1.get_by_role("textbox", name="Multiline editor content").fill(desc_text[position])
         time.sleep(1)
         page1.get_by_label("Save").click()
         page1.get_by_role("textbox", name="Maintainable field Price is a").click()
-        page1.locator( "[id='ITM-VOU-PRICE']").fill("500")
+        page1.locator( "[id='ITM-VOU-PRICE']").fill(total_invoice_amt)
         page1.get_by_role("textbox", name="Maintainable field Price is a").press("Tab")
         time.sleep(1)
         page1.get_by_role("textbox", name="Maintainable field Quantity is a Calculator field", exact=True).press("Tab")
         time.sleep(1)
 
         gl_code_locator = page1.locator( "[id='ITM-VOU-GL-NO_1']")
-        gl_code_locator.fill("4-0-7440-1300")
+        gl_code_locator.fill(str(gl_code[position]))
         gl_code_locator.press("Tab")
         proj_id = "250-HEATX-25"
         proj_id.replace("250","")
-
+        time.sleep(1)
         if gl_code_locator.input_value().strip().startswith("4-0"):
             proj_id_locator = page1.get_by_role("cell", name=f"{proj_id}")
-            time.sleep(100)
+            time.sleep(1)
             try:
-                proj_id_locator.click(timeout=5000)
+                proj_id_locator.click(timeout=50)
                 time.sleep(1)
                 page1.locator("#btnNonFormSearchResultOpenBottom").click()
 
             except TimeoutError:
                 print("Going to next page")
                 page1.get_by_role("button", name="Next Page (PageDown)").click()
-                proj_id_locator.click(timeout=5000)
+                proj_id_locator.click(timeout=500)
                 page1.locator("#btnNonFormSearchResultOpenBottom").click()
             except TimeoutError:
                 print("Going to next page")
                 page1.get_by_role("button", name="Next Page (PageDown)").click()
-                proj_id_locator.click(timeout=5000)
+                proj_id_locator.click(timeout=500)
                 page1.locator("#btnNonFormSearchResultOpenBottom").click()
             except TimeoutError:
                 print("Going to next page")
                 page1.get_by_role("button", name="Next Page (PageDown)").click()
-                proj_id_locator.click(timeout=5000)
+                proj_id_locator.click(timeout=500)
                 page1.locator("#btnNonFormSearchResultOpenBottom").click()
             except TimeoutError:
                 print("Proj ID is not available/valid.")
         # I would include a bool to the voucher dictionary to decide this path
         else:
+            time.sleep(1)
             try:
+                time.sleep(1)
+                print("Exiting project id selection")
                 exit_projid_selection_locator = page1.locator( "[id='non-form-close']")
                 exit_projid_selection_locator.wait_for(state="visible")
-                exit_projid_selection_locator.click()
-                time.sleep(1)
+                exit_projid_selection_locator.click(timeout=500)
+                time.sleep(2)
                 no_proj_id_confirmation_locator = page1.locator( "[id='popup_lookup_button_0']")
-                no_proj_id_confirmation_locator.click()
+                time.sleep(1)
+                no_proj_id_confirmation_locator.click(timeout=500)
             except TimeoutError:
                 print("Problem with exiting")
 
@@ -235,6 +275,7 @@ def run(playwright: Playwright, file_path) -> None:
         time.sleep(1)
         page1.get_by_role("button", name="Save", exact=True).click()
         print("Successful save!")
+
     page1.locator("#popup_lookup_button_1").click()
     page1.get_by_role("link", name="Log Out").click()
     page1.close()
@@ -245,4 +286,4 @@ def run(playwright: Playwright, file_path) -> None:
 
 
 with sync_playwright() as playw:
-    run(playw)
+    run(playw,r"C:\Users\christopher.dessourc\BLS OCR Target\Voucher Data Raw.xlsx")
