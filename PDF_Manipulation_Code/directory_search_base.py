@@ -3,7 +3,7 @@ from openpyxl import load_workbook
 import shutil
 from PDF_Combinator import merge_pdfs
 
-def directory_search(excel_path, inv_sel_path, worksheet_name="SLED Vouchers"):
+def directory_search(excel_path, inv_sel_path, worksheet_name="SLED Vouchers", test_state=False):
     # The directory or directories that you want the search to rifle through are put in the path_list variable.
     path_list = [r""]
 
