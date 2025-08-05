@@ -128,12 +128,16 @@ def run(playwright: Playwright, file_path, state=False, colleague_testing=False)
         time.sleep(1)
         page1.get_by_role("textbox", name="Lookup prompt for Voucher").fill("a")
         page1.get_by_role("textbox", name="Lookup prompt for Voucher").press("Enter")
-        page1.get_by_role("button", name="Y", exact=True).click()
+        confirm_voucher_date_element = page1.get_by_role("button", name="Y", exact=True)
+        confirm_voucher_date_element.click()
         time.sleep(1)
         page1.get_by_role("textbox", name="Maintainable field Voucher Date is a Date field and is").fill(voucher_date[position])
         page1.get_by_role("textbox", name="Maintainable field Voucher Date is a Date field and is").press("Enter")
+        time.sleep(10)
         try:
-            page1.get_by_role("button", name="Y", exact=True).click(timeout=5)
+            # I guess you need to find the element again. Just clicking at a later time isn't enough.
+            confirm_voucher_date_element = page1.get_by_role("button", name="Y", exact=True)
+            confirm_voucher_date_element.click(timeout=900)
         except TimeoutError:
             print("No confirmation needed.")
             pass
@@ -245,13 +249,18 @@ def run(playwright: Playwright, file_path, state=False, colleague_testing=False)
                 print("Exiting project id selection")
                 exit_projid_selection_locator = page1.locator( "[id='non-form-close']")
                 exit_projid_selection_locator.wait_for(state="visible")
-                exit_projid_selection_locator.click(timeout=500)
+                exit_projid_selection_locator.click(timeout=5000)
                 time.sleep(2)
                 no_proj_id_confirmation_locator = page1.locator( "[id='popup_lookup_button_0']")
                 time.sleep(1)
                 no_proj_id_confirmation_locator.click(timeout=500)
             except TimeoutError:
                 print("Problem with exiting")
+        time.sleep(10)
+        # try:
+        #
+        # except TimeoutError:
+        #     print("No 1099")
 
         page1.get_by_role("textbox", name="Window ITM.VOU.GL.NO row 1 Maintainable field Foreign Amount is a Calculator").click()
         time.sleep(1)
@@ -276,6 +285,7 @@ def run(playwright: Playwright, file_path, state=False, colleague_testing=False)
         page1.get_by_role("button", name="Save", exact=True).click()
         print("Successful save!")
 
+
     page1.locator("#popup_lookup_button_1").click()
     page1.get_by_role("link", name="Log Out").click()
     page1.close()
@@ -284,6 +294,28 @@ def run(playwright: Playwright, file_path, state=False, colleague_testing=False)
     context.close()
     browser.close()
 
+def on_click(element_info):
+    print("Clicked id is", element_info["id"])
+
+def set_variables(playwright: Playwright):
+    browser = playwright.chromium.launch(headless=False)
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto("https://playwright.com/")
+    time.sleep(1)
+    page.expose_function("reportClicktoPython", on_click)
+    page.evaluate("""
+    document.addEventListener("click", function(event) {
+        const clickedElement = event.target;
+        window.reportClicktoPython(
+        {
+            id: clickedElement.id
+        });
+        console.log(clickedElement);
+    });"""
+                  )
+    time.sleep(100)
 
 with sync_playwright() as playw:
-    run(playw,r"C:\Users\christopher.dessourc\BLS OCR Target\Voucher Data Raw.xlsx")
+    # set_variables(playw)
+    run(playw,r"C:\Users\christopher.dessourc\BLS OCR Target\Voucher Data Raw.xlsx", colleague_testing=False)

@@ -238,8 +238,7 @@ for subfolder_name in os.listdir(main_folder_path):
                     file_path = os.path.join(subfolder_path, file_name)
 
                     # Convert PDF pages to images
-                    images = convert_from_path(file_path, use_pdftocairo=True, output_folder=temp_folder,
-                                               poppler_path=r"external_items/poppler-24.08.0/Library/bin")
+                    images = convert_from_path(file_path, use_pdftocairo=True, output_folder=temp_folder, poppler_path=r"external_items/poppler-24.08.0/Library/bin")
 
                     # Iterate through the pages and extract text from each ROI
                     image_list = range(len(images))
